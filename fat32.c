@@ -39,15 +39,30 @@ typedef struct{
 }__attribute((packed)) FAT32BootBlock;
 
 
+/*******************************GLOBAL*****************************/
+FILE *file;
+
 /********************************MAIN******************************/
 int main(int argc, char*argv[]){
 
-	if (argc==2){
+  //confimring arguments passed in
+  if (argc==2){
+    if(file=fopen(argv[1],"rb+")){
+    
+    }
 
-	}
-	else{
-		printf("Incorrect number of arguments.\nUsage: <excutable> <fat.img>\n");
-	return 0;
-	}
+    //end program if file not found
+    else{
+      printf("Could not find FAT32 image.\n");
+      return 0;
+    }
+	
+  }
+
+  //end program if no argument passed
+  else{
+    printf("Incorrect number of arguments.\nUsage: <excutable> <fat.img>\n");
+    return 0;
+  }
 
 }
