@@ -7,10 +7,11 @@
 
 /*****************************LIBRARIES******************************/
 #include <stdio.h>	//printf
+#include <string.h>	//strcmp
 
 /*******************************STRUCTS*******************************/
 
-typedef struct{
+struct FAT32BootBlock{
 	unsigned short sector_size;
 	unsigned short reserved_sectors;
 	unsigned short root_dir_entries;
@@ -36,19 +37,37 @@ typedef struct{
 	char volume_label[11];
 	char fs_type[8];
 	char boot_code[436];
-}__attribute((packed)) FAT32BootBlock;
+}__attribute((packed));
 
 
 /*******************************GLOBAL*****************************/
 FILE *file;
+char *fatName;
+struct FAT32BootBlock bdp;
+
 
 /********************************MAIN******************************/
 int main(int argc, char*argv[]){
 
+  char cmd[10];
+
   //confimring arguments passed in
   if (argc==2){
-    if(file=fopen(argv[1],"rb+")){
-    
+    fatName=argv[1];
+
+    if(file=fopen(fatName,"rb+")){
+      while(1){
+	scanf("%s",cmd);
+
+	if(strcmp(cmd,"exit") ==0){
+	  fclose(file);
+	  return 0;
+	}
+	else{
+	  printf("Command not found.\n");
+	  printf("List of commands:\nexit\ninfo\nls\ncd\nsize\ncreat\nmkdir\nrm\nrmdir\nopen\nclose\nread\nwrite\n");
+	}
+      }
     }
 
     //end program if file not found
