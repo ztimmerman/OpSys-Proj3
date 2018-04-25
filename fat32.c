@@ -13,7 +13,7 @@
 
 //Order of this matters for reading in info directly from image
 struct FAT32BootBlock{
-	unsigned char BS_jmBootp[3];
+	unsigned char BS_jmpBoot[3];
 	unsigned char BS_OEMName[8];
 	unsigned short BPB_BytesPerSec;
 	unsigned char BPB_SecPerClus;
@@ -48,6 +48,14 @@ char *fatName;
 struct FAT32BootBlock bpb;
 
 
+/****************************FUNCTIONS*****************************/
+void info(){
+
+  fread(&bpb,sizeof(struct FAT32BootBlock),1,file);
+
+  printf("BS_jmpBoot: 0x%x%x%x\n",bpb.BS_jmpBoot[0],bpb.BS_jmpBoot[1],bpb.BS_jmpBoot[2]);
+
+}
 /********************************MAIN******************************/
 int main(int argc, char*argv[]){
 
@@ -64,6 +72,9 @@ int main(int argc, char*argv[]){
 	if(strcmp(cmd,"exit") ==0){
 	  fclose(file);
 	  return 0;
+	}
+	else if(strcmp(cmd,"info")==0){
+	  info();
 	}
 	else{
 	  printf("Command not found.\n");
