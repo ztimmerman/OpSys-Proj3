@@ -11,39 +11,41 @@
 
 /*******************************STRUCTS*******************************/
 
+//Order of this matters for reading in info directly from image
 struct FAT32BootBlock{
-	unsigned short sector_size;
-	unsigned short reserved_sectors;
-	unsigned short root_dir_entries;
-	unsigned short total_sectors_short;	//if zero, later field is used
-	unsigned short fat_size_sectors;
-	unsigned short secotrs_per_track;
-	unsigned short numner_of_heads;
-	unsigned short bdp_extflags;
-	unsigned short bdp_fsver;
-	unsigned short boot_sector_signature;
-
-	unsigned int hidden_sectors;
-	unsigned int total_sectors_long;
-	unsigned int bdp_FATz32;
-	unsigned int bdp_rootcluster;
-
-	unsigned char jmp[3];
-	unsigned char sectors_per_cluster;
-	unsigned char number_of_fats;
-	unsigned char media_descriptors;
-
-	char oem[8];
-	char volume_label[11];
-	char fs_type[8];
-	char boot_code[436];
+	unsigned char BS_jmBootp[3];
+	unsigned char BS_OEMName[8];
+	unsigned short BPB_BytesPerSec;
+	unsigned char BPB_SecPerClus;
+	unsigned short BPB_RsvdSecCnt;
+	unsigned char BPB_NumFATs;
+	unsigned short BPB_RootEntCnt;
+	unsigned short BPB_TotSec16;
+	unsigned char BPB_Media;
+	unsigned short BPB_FatSz16;
+	unsigned short BPB_SecPerTrk;
+	unsigned short BPB_NumHeads;
+	unsigned int BPB_HiddSec;
+	unsigned int BPB_TotSec32;
+	unsigned int BPB_FATSz32;
+	unsigned short BPB_FSVer;
+	unsigned int BPB_RootClus;
+	unsigned short BPB_FSInfo;
+	unsigned short BPB_BkBootSec;
+	unsigned char BPB_Reserved[12];
+	unsigned char BS_Drvnum;
+	unsigned char BS_Reserved1;
+	unsigned char BS_BootSig;
+	unsigned int BS_VolID;
+	unsigned char BS_VolLab[11];
+	unsigned char BS_FilSysType[8];
 }__attribute((packed));
 
 
 /*******************************GLOBAL*****************************/
 FILE *file;
 char *fatName;
-struct FAT32BootBlock bdp;
+struct FAT32BootBlock bpb;
 
 
 /********************************MAIN******************************/
