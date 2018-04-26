@@ -42,18 +42,32 @@ struct FAT32BootBlock{
 	unsigned char BS_FilSysType[8];
 }__attribute((packed));
 
+struct DirectoryEntry{
+	unsigned char DIR_Name[11];
+	unsigned char DIR_Attr;
+	unsigned char DIR_NTRes;
+	unsigned char DIR_CrtTimeTenth;
+	unsigned short DUR_CrtTime;
+	unsigned short DIR_CrtDate;
+	unsigned short DIR_LstAccDate;
+	unsigned short DIR_FstClustHI;
+	unsigned short DIR_WrtTime;
+	unsigned short DIR_WrtDate;
+	unsigned short DIR_FstClusLO;
+	unsigned int DIR_FileSize;
+}__attribute((packed));
 
 /*******************************GLOBAL*****************************/
 FILE *file;
 char *fatName;
 struct FAT32BootBlock bpb;
+struct DirectoryEntry dir;
 
 
 /****************************FUNCTIONS*****************************/
 /***************************INFO**********************************/
 void info(){
 
-  fread(&bpb,sizeof(struct FAT32BootBlock),1,file);
 
   printf("BS_jmpBoot: 0x%x%x%x\n",bpb.BS_jmpBoot[0],bpb.BS_jmpBoot[1],bpb.BS_jmpBoot[2]);
 
@@ -115,6 +129,7 @@ int main(int argc, char*argv[]){
     fatName=argv[1];
 
     if(file=fopen(fatName,"rb+")){
+      fread(&bpb,sizeof(struct FAT32BootBlock),1,file);	//fills our FAT32 struct
       while(1){
 	scanf("%s",cmd);
 
