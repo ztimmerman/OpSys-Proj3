@@ -70,7 +70,12 @@ struct LongDirectoryEntry{
 	unsigned short LDIR_FstClusLO;
 	unsigned char LDIR_Name3[4];
 }__attribute((packed));
-
+struct OpenFileEntry{
+	unsigned char name[11];
+	unsigned char mode[4];
+	bool used;
+	int cluster;
+};
 /*******************************GLOBAL*****************************/
 FILE *file;
 char *fatName;
@@ -82,7 +87,7 @@ unsigned int fstDataSec;
 unsigned int fstSecClus;
 unsigned char name[11];
 unsigned int parent;
-
+struct OpenFileEntry openlist[25];
 
 /****************************FUNCTIONS*****************************/
 /*************************UTILITIES********************************/
@@ -97,6 +102,117 @@ unsigned int FirstDataSector(){
 unsigned int FirstSectorCluster(unsigned int N){
 	return ((N-2)*bpb.BPB_SecPerClus)+FirstDataSector();
 }
+
+/***************************OPEN UTILTIES**********************************/
+int firstOpen(){
+ for(int i = 0; i < 25; i++){
+	if(openlist[i].used == false){return i;}
+ }
+return -1;// return -1 as an error
+}
+void initOpen(){
+ for(int i = 0; i < 25; i++){
+	openlist[i].used = false;
+ }
+}
+
+int openSearch(char * name){
+ for(int i = 0; i < 25; i++){
+  if(openlist[i].used){
+   if(strcmp(openlist[i].name,name)==0){
+    return i;
+   }
+  }
+ }
+return -1; // if the file isn't open, return -1 as an error
+}
+
+/**************************OPEN*******************************************/
+
+void open(){
+  unsigned int offset;
+  unsigned int c=currClus;
+  bool found=0;
+  unsigned char mode[4];
+  scanf("%s",name);
+  scanf("%s",mode);
+    if(strcmp(mode,"r")!=0 && strcmp(mode,"w")!=0 && strcmp(mode,"rw")!=0 && strcmp(mode,"wr")!=0){
+	//if mode is not "r", "w", "rw", or "wr", it's invalid, so print an error and stop.
+	printf("Invalid mode.\n");
+	return;
+    }
+
+    offset=SectorOffset(FirstSectorCluster(c));
+    fseek(file,offset,SEEK_SET);
+    unsigned int temp=offset+bpb.BPB_BytsPerSec*bpb.BPB_SecPerClus;
+    while(temp>offset){
+	//fills our dir struct
+      fread(&ldir,sizeof(struct LongDirectoryEntry),1,file);
+      fread(&dir,sizeof(struct DirectoryEntry),1,file);
+      unsigned char fname[26]={0};
+
+	//skips the . and .. entries
+    if(ldir.LDIR_Ord=='A'){
+      for(int i=0,k=0;i<10;i+=2){
+  	fname[k]=ldir.LDIR_Name1[i];
+	if(fname[k]=='\0')
+	  break;
+	k++;
+	if(i==8){
+	  for(int j=0;j<12;j+=2){
+	    fname[k]=ldir.LDIR_Name2[j];
+	    if(fname[k]=='\0')
+	      break;
+	    k++;
+	    if(j==10){
+	      for(int l=0;l<4;l+=2){
+	        fname[k]=ldir.LDIR_Name3[l];
+	        if(fname[k]=='\0')
+	          break;
+	        k++;
+	      }
+	    }
+	  }
+	}
+      }
+      if(strcmp(name,fname)==0){
+	int oi = firstOpen();	//oi stands for open index
+	if(oi == -1){
+	  printf("We couldn't open your file because there are too many open files.\n");
+	  return;
+	}
+	if(openSearch(name) == -1){
+	 strcpy(openlist[oi].name, name);
+	 strcpy(openlist[oi].mode, mode);
+	 openlist[oi].cluster = offset;	// I'm not sure, but I think this is right.
+	 openlist[oi].used = true;
+	 offset = temp;
+	 printf("%s is in openlist[%d] at cluster %d\n",openlist[oi].name, oi, openlist[oi].cluster);
+	}
+	else{
+	 printf("This file is already open.\n");
+	}
+	found = true;
+      }
+      offset+=64;	//increments to next entry
+  }
+  else{offset+=64;}
+    }//end while
+  if(!found){printf("%s was not found.\n",name);}
+}
+
+/***************************CLOSE*********************************/
+void close(){
+  scanf("%s",name);
+  int filepos = openSearch(name);
+  if(filepos == -1){
+	printf("This file isn't open.");
+  }
+  else{
+	openlist[filepos].used = false;
+  }
+}
+
 /***************************INFO**********************************/
 void info(){
 
@@ -286,6 +402,7 @@ int main(int argc, char*argv[]){
       currClus=bpb.BPB_RootClus;
       parent=currClus;
 
+	initOpen(); // initiallize each member of openlist so used is false
       while(1){
 	printf("\n%s> ",fatName);
 	scanf("%s",cmd);
@@ -306,7 +423,14 @@ int main(int argc, char*argv[]){
 	  ls();
 	  while((getchar())!='\n');
 	}
-
+	else if(strcmp(cmd,"open")==0){
+	  open();
+	  while((getchar())!='\n');
+	}
+	else if(strcmp(cmd,"close")==0){
+	  close();
+	  while((getchar())!='\n');
+	}
 	else{
 	  printf("Command not found.\n");
 	  printf("List of commands:\nexit\ninfo\nls\ncd\nsize\ncreat\nmkdir\nrm\nrmdir\nopen\nclose\nread\nwrite\n");
