@@ -280,7 +280,6 @@ void ls(){
   //Valid entries are '.', '..' or a string
 
   if(strcmp(name,"..")==0){
-    //if(parent[depth-1]==c){
     if(depth==0){
     }
     else{
@@ -411,7 +410,6 @@ void cd(){
   scanf("%s",name);
 
   if(strcmp(name,"..")==0){
-    //if(parent==c){
     if(depth==0){
       return;
     }
@@ -419,12 +417,10 @@ void cd(){
       c=parent[depth-1];
       depth--;
       currClus=c;
-      //found=1;
       return;
     }
   }
   else if(strcmp(name,".")==0){
-      //found=1;
       return;
   }
   else{
@@ -490,6 +486,129 @@ void cd(){
     printf("Directory not found\n");
   }
 }
+
+/******************************SIZE********************************/
+void size(){
+  unsigned int offset;
+  unsigned int c=currClus;
+  bool found=0;
+
+  scanf("%s",name);
+  
+  //Valid entries are '.', '..' or a string
+
+  if(strcmp(name,"..")==0){
+    if(depth==0){
+    }
+    else{
+      c=parent[depth-1];
+      found=1;
+    }
+  }
+  else if(strcmp(name,".")==0){
+      found=1;
+  }
+  else{
+    //seeks to our current cluster
+    offset=SectorOffset(FirstSectorCluster(c));
+    fseek(file,offset,SEEK_SET);
+    unsigned int temp=offset+bpb.BPB_BytsPerSec*bpb.BPB_SecPerClus;
+
+    while(temp>offset){
+
+	//fills our dir structs
+      fread(&ldir,sizeof(struct LongDirectoryEntry),1,file);
+      fread(&dir,sizeof(struct DirectoryEntry),1,file);
+
+      unsigned char fname[26]={0};
+	//concatenates file names from read data
+      for(int i=0,k=0;i<10;i+=2){
+  	fname[k]=ldir.LDIR_Name1[i];
+	if(fname[k]=='\0')
+	  break;
+	k++;
+	if(i==8){
+	  for(int j=0;j<12;j+=2){
+	    fname[k]=ldir.LDIR_Name2[j];
+	    if(fname[k]=='\0')
+	      break;
+	    k++;
+	    if(j==10){
+	      for(int l=0;l<4;l+=2){
+	        fname[k]=ldir.LDIR_Name3[l];
+	        if(fname[k]=='\0')
+	          break;
+	        k++;
+	      }
+	    }
+	  }
+	}
+      }
+	//trigger on name match
+      if(strcmp(fname,name)==0){
+        found=1;
+	if(dir.DIR_Attr!=0x10){
+	  printf("Size: %d Bytes\n",dir.DIR_FileSize);
+	  return;
+	}
+	else{
+	  c=dir.DIR_FstClusHI*0x100+dir.DIR_FstClusLO;
+	}
+	break;
+      }
+      offset+=64;	//increments to next entry
+    }//end while
+  }
+
+	//found matching directory
+  if(found){
+	//same algorithm as above, but printing filenames
+    offset=SectorOffset(FirstSectorCluster(c));
+    fseek(file,offset,SEEK_SET);
+    unsigned int temp=offset+bpb.BPB_BytsPerSec*bpb.BPB_SecPerClus;
+    unsigned int entries=0;
+    while(temp>offset){
+	//fills our dir struct
+      fread(&ldir,sizeof(struct LongDirectoryEntry),1,file);
+      fread(&dir,sizeof(struct DirectoryEntry),1,file);
+      unsigned char fname[26]={0};
+
+	//skips the . and .. entries
+    if(ldir.LDIR_Ord=='A'){
+      for(int i=0,k=0;i<10;i+=2){
+  	fname[k]=ldir.LDIR_Name1[i];
+	if(fname[k]=='\0')
+	  break;
+	k++;
+	if(i==8){
+	  for(int j=0;j<12;j+=2){
+	    fname[k]=ldir.LDIR_Name2[j];
+	    if(fname[k]=='\0')
+	      break;
+	    k++;
+	    if(j==10){
+	      for(int l=0;l<4;l+=2){
+	        fname[k]=ldir.LDIR_Name3[l];
+	        if(fname[k]=='\0')
+	          break;
+	        k++;
+	      }
+	    }
+	  }
+	}
+      }
+      entries++;
+      offset+=64;	//increments to next entry
+  }
+  else{offset+=64;}
+    }//end while
+    printf("Entries in directory: %d\n",entries);
+  }
+  else{
+    printf("Directory or file not found\n");
+  }
+}
+
 /********************************MAIN******************************/
 int main(int argc, char*argv[]){
 
@@ -526,6 +645,10 @@ int main(int argc, char*argv[]){
 	  ls();
 	  while((getchar())!='\n');
 	}
+	else if(strcmp(cmd,"size")==0){
+	  size();
+	  while((getchar())!='\n');
+	}
 	else if(strcmp(cmd,"open")==0){
 	  open();
 	  while((getchar())!='\n');
@@ -536,7 +659,7 @@ int main(int argc, char*argv[]){
 	}
 	else{
 	  printf("Command not found.\n");
-	  printf("List of commands:\nexit\ninfo\nls\ncd\nsize\ncreat\nmkdir\nrm\nrmdir\nopen\nclose\nread\nwrite\n");
+	  printf("List of commands:\nexit\ninfo\nls <dir>\ncd <dir>\nsize <dir> or size <file>\ncreat\nmkdir\nrm\nrmdir\nopen <file> <mode>\nclose <file>\nread\nwrite\n");
 	}
       }
     }
