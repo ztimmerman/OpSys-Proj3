@@ -20,11 +20,13 @@ Member 3: John Thomas Lascha
 Dillon Prendergast
   -project manager
   -README
-  -part1
-  -part2
-  -part3
-  -part4
-  -part5
+  -part1- exit
+  -part2- info
+  -part3- ls
+  -part4- cd
+  -part5- size
+  -part7- mkdir
+  -part9- rmdir
 
 Zachary Timmerman
 
@@ -66,7 +68,7 @@ To remove executable:
 		      BUGS
 **************************************************
 
--
+-Mkdir concatenates names of directories longer than 5 char
 
 **************************************************
 		UNFINISHED PORTIONS
