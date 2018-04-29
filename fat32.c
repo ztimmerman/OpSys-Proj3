@@ -9,6 +9,7 @@
 #include <stdio.h>	//printf
 #include <string.h>	//strcmp
 #include <stdbool.h>	//bool
+#include <stdlib.h>	//atoi
 
 /*******************************STRUCTS*******************************/
 
@@ -71,7 +72,7 @@ struct LongDirectoryEntry{
 	unsigned char LDIR_Name3[4];
 }__attribute((packed));
 struct OpenFileEntry{
-	unsigned char name[11];
+	unsigned char name[26];
 	unsigned char mode[4];
 	bool used;
 	int cluster;
@@ -90,10 +91,6 @@ unsigned char name[26];
 unsigned int depth=0;
 unsigned int parent[100];	//system can go 100 directory deep
 struct OpenFileEntry openlist[25];
-unsigned int totalClus;
-
-static const struct LongDirectoryEntry EmptyLDir;
-static const struct DirectoryEntry EmptyDir;
 
 /****************************FUNCTIONS*****************************/
 /*************************UTILITIES********************************/
@@ -153,6 +150,7 @@ void open(){
     unsigned int temp=offset+bpb.BPB_BytsPerSec*bpb.BPB_SecPerClus;
     while(temp>offset){
 	//fills our dir struct
+      fseek(file,offset,SEEK_SET);
       fread(&ldir,sizeof(struct LongDirectoryEntry),1,file);
       fread(&dir,sizeof(struct DirectoryEntry),1,file);
       unsigned char fname[26]={0};
@@ -181,6 +179,7 @@ void open(){
 	  }
 	}
       }
+
       if(strcmp(name,fname)==0){
 	int oi = firstOpen();	//oi stands for open index
 	if(oi == -1){
@@ -190,7 +189,12 @@ void open(){
 	if(openSearch(name) == -1){
 	 strcpy(openlist[oi].name, name);
 	 strcpy(openlist[oi].mode, mode);
-	 openlist[oi].cluster = offset;	// I'm not sure, but I think this is right.
+//	 openlist[oi].cluster = offset;	// I'm not sure, but I think this is right.
+	 openlist[oi].cluster =SectorOffset(FirstSectorCluster(dir.DIR_FstClusHI*0x100+dir.DIR_FstClusLO)); // this is what Dillon suggested
+         openlist[oi].cluster -= 32; //for some reason, this is need to let it print
+
+//printf("DIR_FstClusHI: %d, DIR_FstClusLO: %d\n",dir.DIR_FstClusHI, dir.DIR_FstClusLO);//**********************************
+
 	 openlist[oi].used = true;
 	 offset = temp;
 	 printf("%s is in openlist[%d] at cluster %d\n",openlist[oi].name, oi, openlist[oi].cluster);
@@ -217,6 +221,188 @@ void close(){
   else{
 	openlist[filepos].used = false;
   }
+}
+
+/***********************RETURN SIZE*******************************/
+int findsize(){
+  unsigned int offset;
+  unsigned int c=currClus;
+  bool found=0;
+
+  //Valid entries are '.', '..' or a string
+
+  if(strcmp(name,"..")==0){
+    if(depth==0){
+    }
+    else{
+      c=parent[depth-1];
+      found=1;
+    }
+  }
+  else if(strcmp(name,".")==0){
+      found=1;
+  }
+  else{
+    //seeks to our current cluster
+    offset=SectorOffset(FirstSectorCluster(c));
+    fseek(file,offset,SEEK_SET);
+    unsigned int temp=offset+bpb.BPB_BytsPerSec*bpb.BPB_SecPerClus;
+
+    while(temp>offset){
+
+	//fills our dir structs
+      fread(&ldir,sizeof(struct LongDirectoryEntry),1,file);
+      fread(&dir,sizeof(struct DirectoryEntry),1,file);
+
+      unsigned char fname[26]={0};
+	//concatenates file names from read data
+      for(int i=0,k=0;i<10;i+=2){
+  	fname[k]=ldir.LDIR_Name1[i];
+	if(fname[k]=='\0')
+	  break;
+	k++;
+	if(i==8){
+	  for(int j=0;j<12;j+=2){
+	    fname[k]=ldir.LDIR_Name2[j];
+	    if(fname[k]=='\0')
+	      break;
+	    k++;
+	    if(j==10){
+	      for(int l=0;l<4;l+=2){
+	        fname[k]=ldir.LDIR_Name3[l];
+	        if(fname[k]=='\0')
+	          break;
+	        k++;
+	      }
+	    }
+	  }
+	}
+      }
+	//trigger on name match
+      if(strcmp(fname,name)==0){
+        found=1;
+	if(dir.DIR_Attr!=0x10){
+	  //printf("Size: %d Bytes\n",dir.DIR_FileSize);
+	  return dir.DIR_FileSize;
+	}
+	else{
+	  c=dir.DIR_FstClusHI*0x100+dir.DIR_FstClusLO;
+	}
+	break;
+      }
+      offset+=64;	//increments to next entry
+    }//end while
+  }
+
+	//found matching directory
+  if(found){
+	//same algorithm as above, but printing filenames
+    offset=SectorOffset(FirstSectorCluster(c));
+    fseek(file,offset,SEEK_SET);
+    unsigned int temp=offset+bpb.BPB_BytsPerSec*bpb.BPB_SecPerClus;
+    unsigned int entries=0;
+    while(temp>offset){
+	//fills our dir struct
+      fread(&ldir,sizeof(struct LongDirectoryEntry),1,file);
+      fread(&dir,sizeof(struct DirectoryEntry),1,file);
+      unsigned char fname[26]={0};
+
+	//skips the . and .. entries
+    if(ldir.LDIR_Ord=='A'){
+      for(int i=0,k=0;i<10;i+=2){
+  	fname[k]=ldir.LDIR_Name1[i];
+	if(fname[k]=='\0')
+	  break;
+	k++;
+	if(i==8){
+	  for(int j=0;j<12;j+=2){
+	    fname[k]=ldir.LDIR_Name2[j];
+	    if(fname[k]=='\0')
+	      break;
+	    k++;
+	    if(j==10){
+	      for(int l=0;l<4;l+=2){
+	        fname[k]=ldir.LDIR_Name3[l];
+	        if(fname[k]=='\0')
+	          break;
+	        k++;
+	      }
+	    }
+	  }
+	}
+      }
+      entries++;
+      offset+=64;	//increments to next entry
+  }
+  else{offset+=64;}
+    }//end while
+    printf("Entries in directory: %d\n",entries);
+  }
+  else{
+    printf("Directory or file not found\n");
+  }
+}
+
+
+/***************************READ**********************************/
+void read(){
+	// TO DO:
+	// Multi-cluster files need to be tested, but I think this should be able to handle them.
+	// mode checking for the mode in the actual file system. (I've already tested for the mode the user entered when opening the file).
+
+
+ char inoffset[11];
+ char insize[11];
+ int offset;
+ int originalOffset;
+ int size;
+ int realSize;
+ scanf("%s",name);
+ scanf("%s",inoffset);
+ scanf("%s",insize);
+ offset = atoi(inoffset);
+ size = atoi(insize);
+ realSize = findsize(); 
+ int n = offset / bpb.BPB_BytsPerSec;
+ char contents[bpb.BPB_BytsPerSec];
+ int index = openSearch(name);
+ if(index == -1){
+  printf("This file is not open.\n");
+  return;
+ }
+ 
+ if(strcmp(openlist[index].mode,"r")!=0 && strcmp(openlist[index].mode,"rw")!=0 && strcmp(openlist[index].mode,"wr")!=0)
+ {
+  printf("You do not have permission to read from this file.\n");
+  return;
+ }
+ // Do this test again, but for the actual mode in the file system for this file.
+ 
+ if(offset < 0){offset = offset * -1;} // don't let offset be negative.
+ if(offset + size > realSize){size = realSize - offset;} // Don't let them read past the end of the file.
+ if(size <=0){return;}
+ originalOffset = offset;
+ int next = 1;
+ offset += openlist[index].cluster; 
+
+ while(next != 0){
+	fseek (file,offset,SEEK_SET);
+	fread(&dir,sizeof(struct DirectoryEntry),1,file);
+	fread (&contents, sizeof(contents), 1, file);
+
+	for(int i = 0; i < size; i++){
+ 	 printf("%c",contents[i]);
+ 	}
+ 	printf("\n");
+
+ 	fseek (file, offset - originalOffset,SEEK_SET);
+ 	fread(&dir,sizeof(struct DirectoryEntry),1,file);
+ 	offset =SectorOffset(FirstSectorCluster(dir.DIR_FstClusHI*0x100+dir.DIR_FstClusLO)) - 32;
+ 	next = dir.DIR_FstClusHI*0x100 + dir.DIR_FstClusLO;
+	originalOffset = 0; // no offset for subsequent clusters
+	// printf("Next Cluster: FAT[%d]\n",next);
+} // end of while
+
 }
 
 /***************************INFO**********************************/
@@ -406,8 +592,6 @@ void ls(){
 }
 
 /*******************************CD*********************************/
-//Looks for matching directory and changes current cluster to it
-//Adds onto parent directory list
 void cd(){
   unsigned int offset;
   unsigned int c=currClus;
@@ -466,6 +650,7 @@ void cd(){
 	}
       }
 	//trigger on name match
+	//ls only works with directories
       if(strcmp(fname,name)==0){
         found=1;
 	if(dir.DIR_Attr!=0x10){
@@ -493,9 +678,6 @@ void cd(){
 }
 
 /******************************SIZE********************************/
-//searches for matching file or directory
-//files are printed out size in bytes
-//directories are printed number of entries
 void size(){
   unsigned int offset;
   unsigned int c=currClus;
@@ -617,291 +799,6 @@ void size(){
   }
 }
 
-/******************************RMDIR*******************************/
-//Searches for matching directory
-//Checks if it's empty
-//Deletes data at cluster
-//Then removes data from directory entry
-void rmdir(){
-  unsigned int offset;
-  unsigned int c=currClus;
-  bool found=0;
-
-  scanf("%s",name);
-
-  if(strcmp(name,"..")==0){
-    printf("Invalid argument\n");
-    return;
-  }
-  else if(strcmp(name,".")==0){
-      printf("Invalid argument\n");
-      return;
-  }
-  else{
-    //seeks to our current cluster
-    offset=SectorOffset(FirstSectorCluster(c));
-    fseek(file,offset,SEEK_SET);
-    unsigned int temp=offset+bpb.BPB_BytsPerSec*bpb.BPB_SecPerClus;
-
-    while(temp>offset){
-
-	//fills our dir structs
-      fread(&ldir,sizeof(struct LongDirectoryEntry),1,file);
-      fread(&dir,sizeof(struct DirectoryEntry),1,file);
-
-      unsigned char fname[26]={0};
-	//concatenates file names from read data
-      for(int i=0,k=0;i<10;i+=2){
-  	fname[k]=ldir.LDIR_Name1[i];
-	if(fname[k]=='\0')
-	  break;
-	k++;
-	if(i==8){
-	  for(int j=0;j<12;j+=2){
-	    fname[k]=ldir.LDIR_Name2[j];
-	    if(fname[k]=='\0')
-	      break;
-	    k++;
-	    if(j==10){
-	      for(int l=0;l<4;l+=2){
-	        fname[k]=ldir.LDIR_Name3[l];
-	        if(fname[k]=='\0')
-	          break;
-	        k++;
-	      }
-	    }
-	  }
-	}
-      }
-	//trigger on name match
-      if(strcmp(fname,name)==0){
-        found=1;
-	if(dir.DIR_Attr!=0x10){
-	  found=0;
-	  break;
-	}
-	else{
-	  c=dir.DIR_FstClusHI*0x100+dir.DIR_FstClusLO;
-	}
-	break;
-      }
-      offset+=64;	//increments to next entry
-    }//end while
-  }
-
-	//found matching directory
-  if(found){
-	//same algorithm as above, but printing filenames
-//pos is offset for directory entry, only saving search alg time
-    unsigned int pos;
-      pos=offset;
-    offset=SectorOffset(FirstSectorCluster(c));
-    fseek(file,offset,SEEK_SET);
-    unsigned int temp=offset+bpb.BPB_BytsPerSec*bpb.BPB_SecPerClus;
-    unsigned int entries=0;
-    while(temp>offset){
-	//fills our dir struct
-      fread(&ldir,sizeof(struct LongDirectoryEntry),1,file);
-      fread(&dir,sizeof(struct DirectoryEntry),1,file);
-      unsigned char fname[26]={0};
-
-	//skips the . and .. entries
-    if(ldir.LDIR_Ord=='A'){
-      for(int i=0,k=0;i<10;i+=2){
-  	fname[k]=ldir.LDIR_Name1[i];
-	if(fname[k]=='\0')
-	  break;
-	k++;
-	if(i==8){
-	  for(int j=0;j<12;j+=2){
-	    fname[k]=ldir.LDIR_Name2[j];
-	    if(fname[k]=='\0')
-	      break;
-	    k++;
-	    if(j==10){
-	      for(int l=0;l<4;l+=2){
-	        fname[k]=ldir.LDIR_Name3[l];
-	        if(fname[k]=='\0')
-	          break;
-	        k++;
-	      }
-	    }
-	  }
-	}		//checking for emptiness
-      }
-      entries++;
-      offset+=64;	//increments to next entry
-  }
-  else{offset+=64;}
-    }//end while
-    if(entries!=0){
-      printf("Directory not empty\n");
-      return;
-    }
-    else{
-      offset=SectorOffset(FirstSectorCluster(c));
-      fseek(file,offset,SEEK_SET);
-
-      for(int i=0;i<2;i++){		//delete cluster data
-        fwrite(&EmptyLDir,sizeof(struct LongDirectoryEntry),1,file);
-        fwrite(&EmptyDir,sizeof(struct DirectoryEntry),1,file);
-      
-      }
-      fseek(file,pos,SEEK_SET);		//removes dir entry
-      fwrite(&EmptyLDir,sizeof(struct LongDirectoryEntry),1,file);
-      fwrite(&EmptyDir,sizeof(struct DirectoryEntry),1,file);
-    }
-  }
-  else{
-    printf("Directory not found\n");
-  }
-}
-
-/*******************************MKDIR*****************************/
-//Creates a direcotry with given name
-//Name truncates longer values- BUG
-void mkdir(){
-  unsigned int offset;
-  unsigned int c=currClus;
-  bool found=0;
-
-  scanf("%s",name);
-
-  if(strcmp(name,"..")==0){
-    printf("Invalid argument\n");
-    return;
-  }
-  else if(strcmp(name,".")==0){
-      printf("Invalid argument\n");
-      return;
-  }
-  else{
-    //seeks to our current cluster
-    offset=SectorOffset(FirstSectorCluster(c));
-    fseek(file,offset,SEEK_SET);
-    unsigned int temp=offset+bpb.BPB_BytsPerSec*bpb.BPB_SecPerClus;
-
-    while(temp>offset){
-
-	//fills our dir structs
-      fread(&ldir,sizeof(struct LongDirectoryEntry),1,file);
-      fread(&dir,sizeof(struct DirectoryEntry),1,file);
-
-      unsigned char fname[26]={0};
-	//concatenates file names from read data
-      for(int i=0,k=0;i<10;i+=2){
-  	fname[k]=ldir.LDIR_Name1[i];
-	if(fname[k]=='\0')
-	  break;
-	k++;
-	if(i==8){
-	  for(int j=0;j<12;j+=2){
-	    fname[k]=ldir.LDIR_Name2[j];
-	    if(fname[k]=='\0')
-	      break;
-	    k++;
-	    if(j==10){
-	      for(int l=0;l<4;l+=2){
-	        fname[k]=ldir.LDIR_Name3[l];
-	        if(fname[k]=='\0')
-	          break;
-	        k++;
-	      }
-	    }
-	  }
-	}
-      }
-	//trigger on name match
-      if(strcmp(fname,name)==0){
-        found=1;
-	break;
-      }
-      offset+=64;	//increments to next entry
-    }//end while
-  }
-
-	//matching directory not found
-  if(!found){
-	//same algorithm as above, but printing filenames
-   unsigned int emptyClus=0;
-   for(int i=bpb.BPB_RootClus;i<totalClus;i++){
-    offset=SectorOffset(FirstSectorCluster(i));
-    fseek(file,offset,SEEK_SET);
-    fread(&ldir,sizeof(struct LongDirectoryEntry),1,file);
-    if(ldir.LDIR_Ord==0){
-      emptyClus=i;
-      break;
-    }
-   }
-
-    
-    offset=SectorOffset(FirstSectorCluster(c));
-    fseek(file,offset,SEEK_SET);
-    unsigned int temp=offset+bpb.BPB_BytsPerSec*bpb.BPB_SecPerClus;
-    struct LongDirectoryEntry lcopy;
-    struct DirectoryEntry copy;
-    bool created=0;
-    while(temp>offset){
-      fread(&ldir,sizeof(struct LongDirectoryEntry),1,file);
-      fread(&dir,sizeof(struct DirectoryEntry),1,file);
-      if(ldir.LDIR_Ord!='A'&&ldir.LDIR_Ord!=0x2e){
-        fseek(file,offset,SEEK_SET);
-        ldir.LDIR_Ord='A';
-	for(int i=0;i<26;i+=2){		//creates in empty cluster
-          if(i<10){
-	    ldir.LDIR_Name1[i]=name[i/2];
-	  }
-	  else if(i<22){
-	    ldir.LDIR_Name2[i]=name[i/2];
-	  }
-	  else{
-	    ldir.LDIR_Name3[i]=name[i/2];
-	  }
-	  if(name[i/2]=='\0')
-	    break;
-	}
-	  dir.DIR_Attr=0x10;
-	  dir.DIR_FstClusHI=emptyClus/0x100;
-	  dir.DIR_FstClusLO=emptyClus%0x100;
-        fwrite(&ldir,sizeof(struct LongDirectoryEntry),1,file);
-        fwrite(&dir,sizeof(struct DirectoryEntry),1,file);
-	created=1;
-        break;
-      }
-      offset+=64;
-    }
-    if(created){	//creates dir entry
-      offset=SectorOffset(FirstSectorCluster(emptyClus));
-      fseek(file,offset,SEEK_SET);
-
-	for(int i=0;i<11;i++){
-	  if(i==0)
-	    dir.DIR_Name[i]='.';
-	  else
-	    dir.DIR_Name[i]=' ';
-	}
-      dir.DIR_Attr=0x10;
-      fwrite(&dir,sizeof(struct DirectoryEntry),1,file);
-	for(int i=0;i<11;i++){
-	  if(i==0||i==1)
-	    dir.DIR_Name[i]='.';
-	  else
-	    dir.DIR_Name[i]=' ';
-	}
-      dir.DIR_Attr=0x10;
-      dir.DIR_FstClusHI=c/0x100;
-      dir.DIR_FstClusLO=c%0x100;
-      fwrite(&dir,sizeof(struct DirectoryEntry),1,file);
-    }
-    else{
-	printf("Current directory full\n");
-    }
-  }
-  else{
-    printf("Directory name in use\n");
-  }
-}
-
 /********************************MAIN******************************/
 int main(int argc, char*argv[]){
 
@@ -916,7 +813,6 @@ int main(int argc, char*argv[]){
 
       currClus=bpb.BPB_RootClus;
       parent[depth]=currClus;
-      totalClus=bpb.BPB_TotSec32;
 
 	initOpen(); // initiallize each member of openlist so used is false
       while(1){
@@ -943,14 +839,6 @@ int main(int argc, char*argv[]){
 	  size();
 	  while((getchar())!='\n');
 	}
-	else if(strcmp(cmd,"rmdir")==0){
-	  rmdir();
-	  while((getchar())!='\n');
-	}
-	else if(strcmp(cmd,"mkdir")==0){
-	  mkdir();
-	  while((getchar())!='\n');
-	}
 	else if(strcmp(cmd,"open")==0){
 	  open();
 	  while((getchar())!='\n');
@@ -959,9 +847,13 @@ int main(int argc, char*argv[]){
 	  close();
 	  while((getchar())!='\n');
 	}
+	else if(strcmp(cmd,"read")==0){
+	  read();
+	  while((getchar())!='\n');
+	}
 	else{
 	  printf("Command not found.\n");
-	  printf("List of commands:\nexit\ninfo\nls <dir>\ncd <dir>\nsize <dir> or size <file>\ncreat\nmkdir <dir>\nrm\nrmdir <dir>\nopen <file> <mode>\nclose <file>\nread\nwrite\n");
+	  printf("List of commands:\nexit\ninfo\nls <dir>\ncd <dir>\nsize <dir> or size <file>\ncreat\nmkdir\nrm\nrmdir\nopen <file> <mode>\nclose <file>\nread\nwrite\n");
 	}
       }
     }
