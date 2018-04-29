@@ -73,7 +73,7 @@ To remove executable:
 		      BUGS
 **************************************************
 
--Mkdir truncates names of directories longer than 5 char
+-Mkdir/creat truncates names longer than 5 char
 -write cuts ending 0's when size>strlen
 
 **************************************************
