@@ -276,7 +276,7 @@ void ls(){
   bool found=0;
 
   scanf("%s",name);
-  
+
   //Valid entries are '.', '..' or a string
 
   if(strcmp(name,"..")==0){
@@ -494,7 +494,7 @@ void size(){
   bool found=0;
 
   scanf("%s",name);
-  
+
   //Valid entries are '.', '..' or a string
 
   if(strcmp(name,"..")==0){
@@ -609,6 +609,11 @@ void size(){
   }
 }
 
+/*******************************CREAT******************************/
+void creat()	{
+
+}
+
 /********************************MAIN******************************/
 int main(int argc, char*argv[]){
 
@@ -669,7 +674,7 @@ int main(int argc, char*argv[]){
       printf("Could not find FAT32 image.\n");
       return 0;
     }
-	
+
   }
 
   //end program if no argument passed
