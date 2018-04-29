@@ -33,6 +33,7 @@ Zachary Timmerman
 John Thomas Lascha
   -part10
   -part11
+  -part12
 **************************************************
 		TAR ARCHIVE CONTENTS
 **************************************************
