@@ -91,6 +91,11 @@ unsigned char name[26];
 unsigned int depth=0;
 unsigned int parent[100];	//system can go 100 directory deep
 struct OpenFileEntry openlist[25];
+unsigned int totalClus;
+
+static const struct LongDirectoryEntry EmptyLDir;
+static const struct DirectoryEntry EmptyDir;
+
 
 /****************************FUNCTIONS*****************************/
 /*************************UTILITIES********************************/
@@ -857,6 +862,292 @@ void size(){
   }
 }
 
+
+/******************************RMDIR*******************************/
+//Searches for matching directory
+//Checks if it's empty
+//Deletes data at cluster
+//Then removes data from directory entry
+void rmdir(){
+  unsigned int offset;
+  unsigned int c=currClus;
+  bool found=0;
+
+  scanf("%s",name);
+
+  if(strcmp(name,"..")==0){
+    printf("Invalid argument\n");
+    return;
+  }
+  else if(strcmp(name,".")==0){
+      printf("Invalid argument\n");
+      return;
+  }
+  else{
+    //seeks to our current cluster
+    offset=SectorOffset(FirstSectorCluster(c));
+    fseek(file,offset,SEEK_SET);
+    unsigned int temp=offset+bpb.BPB_BytsPerSec*bpb.BPB_SecPerClus;
+
+    while(temp>offset){
+
+        //fills our dir structs
+      fread(&ldir,sizeof(struct LongDirectoryEntry),1,file);
+      fread(&dir,sizeof(struct DirectoryEntry),1,file);
+
+      unsigned char fname[26]={0};
+        //concatenates file names from read data
+      for(int i=0,k=0;i<10;i+=2){
+        fname[k]=ldir.LDIR_Name1[i];
+        if(fname[k]=='\0')
+          break;
+        k++;
+        if(i==8){
+          for(int j=0;j<12;j+=2){
+            fname[k]=ldir.LDIR_Name2[j];
+            if(fname[k]=='\0')
+              break;
+            k++;
+            if(j==10){
+              for(int l=0;l<4;l+=2){
+                fname[k]=ldir.LDIR_Name3[l];
+                if(fname[k]=='\0')
+                  break;
+                k++;
+              }
+            }
+          }
+        }
+      }
+        //trigger on name match
+      if(strcmp(fname,name)==0){
+        found=1;
+        if(dir.DIR_Attr!=0x10){
+          found=0;
+          break;
+        }
+        else{
+          c=dir.DIR_FstClusHI*0x100+dir.DIR_FstClusLO;
+        }
+        break;
+      }
+      offset+=64;       //increments to next entry
+    }//end while
+  }
+
+        //found matching directory
+  if(found){
+        //same algorithm as above, but printing filenames
+//pos is offset for directory entry, only saving search alg time
+    unsigned int pos;
+      pos=offset;
+    offset=SectorOffset(FirstSectorCluster(c));
+    fseek(file,offset,SEEK_SET);
+    unsigned int temp=offset+bpb.BPB_BytsPerSec*bpb.BPB_SecPerClus;
+    unsigned int entries=0;
+    while(temp>offset){
+        //fills our dir struct
+      fread(&ldir,sizeof(struct LongDirectoryEntry),1,file);
+      fread(&dir,sizeof(struct DirectoryEntry),1,file);
+      unsigned char fname[26]={0};
+
+        //skips the . and .. entries
+    if(ldir.LDIR_Ord=='A'){
+      for(int i=0,k=0;i<10;i+=2){
+        fname[k]=ldir.LDIR_Name1[i];
+        if(fname[k]=='\0')
+          break;
+        k++;
+        if(i==8){
+          for(int j=0;j<12;j+=2){
+ fname[k]=ldir.LDIR_Name2[j];
+            if(fname[k]=='\0')
+              break;
+            k++;
+            if(j==10){
+              for(int l=0;l<4;l+=2){
+                fname[k]=ldir.LDIR_Name3[l];
+                if(fname[k]=='\0')
+                  break;
+                k++;
+              }
+            }
+          }
+        }               //checking for emptiness
+      }
+      entries++;
+      offset+=64;       //increments to next entry
+  }
+  else{offset+=64;}
+    }//end while
+    if(entries!=0){
+      printf("Directory not empty\n");
+      return;
+    }
+    else{
+      offset=SectorOffset(FirstSectorCluster(c));
+      fseek(file,offset,SEEK_SET);
+
+      for(int i=0;i<2;i++){             //delete cluster data
+        fwrite(&EmptyLDir,sizeof(struct LongDirectoryEntry),1,file);
+        fwrite(&EmptyDir,sizeof(struct DirectoryEntry),1,file);
+
+      }
+      fseek(file,pos,SEEK_SET);         //removes dir entry
+      fwrite(&EmptyLDir,sizeof(struct LongDirectoryEntry),1,file);
+      fwrite(&EmptyDir,sizeof(struct DirectoryEntry),1,file);
+    }
+  }
+  else{
+    printf("Directory not found\n");
+  }
+}
+
+/*******************************MKDIR*****************************/
+//Creates a direcotry with given name
+//Name truncates longer values- BUG
+void mkdir(){
+  unsigned int offset;
+  unsigned int c=currClus;
+  bool found=0;
+
+  scanf("%s",name);
+
+  if(strcmp(name,"..")==0){
+    printf("Invalid argument\n");
+    return;
+  }
+  else if(strcmp(name,".")==0){
+      printf("Invalid argument\n");
+      return;
+  }
+  else{
+    //seeks to our current cluster
+    offset=SectorOffset(FirstSectorCluster(c));
+    fseek(file,offset,SEEK_SET);
+    unsigned int temp=offset+bpb.BPB_BytsPerSec*bpb.BPB_SecPerClus;
+
+    while(temp>offset){
+
+        //fills our dir structs
+      fread(&ldir,sizeof(struct LongDirectoryEntry),1,file);
+      fread(&dir,sizeof(struct DirectoryEntry),1,file);
+
+      unsigned char fname[26]={0};
+        //concatenates file names from read data
+      for(int i=0,k=0;i<10;i+=2){
+        fname[k]=ldir.LDIR_Name1[i];
+        if(fname[k]=='\0')
+          break;
+        k++;
+        if(i==8){
+          for(int j=0;j<12;j+=2){
+            fname[k]=ldir.LDIR_Name2[j];
+            if(fname[k]=='\0')
+              break;
+            k++;
+            if(j==10){
+              for(int l=0;l<4;l+=2){
+                fname[k]=ldir.LDIR_Name3[l];
+                if(fname[k]=='\0')
+                  break;
+                k++;
+              }
+            }
+          }
+        }
+      }
+        //trigger on name match
+      if(strcmp(fname,name)==0){
+        found=1;
+        break;
+      }
+      offset+=64;       //increments to next entry
+    }//end while
+  }
+
+        //matching directory not found
+  if(!found){
+        //same algorithm as above, but printing filenames
+   unsigned int emptyClus=0;
+   for(int i=bpb.BPB_RootClus;i<totalClus;i++){
+    offset=SectorOffset(FirstSectorCluster(i));
+    fseek(file,offset,SEEK_SET);
+    fread(&ldir,sizeof(struct LongDirectoryEntry),1,file);
+    if(ldir.LDIR_Ord==0){
+      emptyClus=i;
+      break;
+    }
+   }
+
+
+    offset=SectorOffset(FirstSectorCluster(c));
+    fseek(file,offset,SEEK_SET);
+    unsigned int temp=offset+bpb.BPB_BytsPerSec*bpb.BPB_SecPerClus;
+    struct LongDirectoryEntry lcopy;
+    struct DirectoryEntry copy;
+    bool created=0;
+    while(temp>offset){
+      fread(&ldir,sizeof(struct LongDirectoryEntry),1,file);
+      fread(&dir,sizeof(struct DirectoryEntry),1,file);
+      if(ldir.LDIR_Ord!='A'&&ldir.LDIR_Ord!=0x2e){
+        fseek(file,offset,SEEK_SET);
+        ldir.LDIR_Ord='A';
+        for(int i=0;i<26;i+=2){         //creates in empty cluster
+          if(i<10){
+            ldir.LDIR_Name1[i]=name[i/2];
+          }
+          else if(i<22){
+            ldir.LDIR_Name2[i]=name[i/2];
+          }
+          else{
+            ldir.LDIR_Name3[i]=name[i/2];
+          }
+          if(name[i/2]=='\0')
+            break;
+        }
+         dir.DIR_Attr=0x10;
+          dir.DIR_FstClusHI=emptyClus/0x100;
+          dir.DIR_FstClusLO=emptyClus%0x100;
+        fwrite(&ldir,sizeof(struct LongDirectoryEntry),1,file);
+        fwrite(&dir,sizeof(struct DirectoryEntry),1,file);
+        created=1;
+        break;
+      }
+      offset+=64;
+    }
+    if(created){        //creates dir entry
+      offset=SectorOffset(FirstSectorCluster(emptyClus));
+      fseek(file,offset,SEEK_SET);
+
+        for(int i=0;i<11;i++){
+          if(i==0)
+            dir.DIR_Name[i]='.';
+          else
+            dir.DIR_Name[i]=' ';
+        }
+      dir.DIR_Attr=0x10;
+      fwrite(&dir,sizeof(struct DirectoryEntry),1,file);
+        for(int i=0;i<11;i++){
+          if(i==0||i==1)
+            dir.DIR_Name[i]='.';
+          else
+            dir.DIR_Name[i]=' ';
+        }
+      dir.DIR_Attr=0x10;
+      dir.DIR_FstClusHI=c/0x100;
+      dir.DIR_FstClusLO=c%0x100;
+      fwrite(&dir,sizeof(struct DirectoryEntry),1,file);
+    }
+    else{
+        printf("Current directory full\n");
+    }
+  }
+  else{
+    printf("Directory name in use\n");
+  }
+}
+
 /********************************MAIN******************************/
 int main(int argc, char*argv[]){
 
@@ -897,6 +1188,14 @@ int main(int argc, char*argv[]){
 	  size();
 	  while((getchar())!='\n');
 	}
+        else if(strcmp(cmd,"rmdir")==0){
+          rmdir();
+          while((getchar())!='\n');
+        }
+        else if(strcmp(cmd,"mkdir")==0){
+          mkdir();
+          while((getchar())!='\n');
+        }
 	else if(strcmp(cmd,"open")==0){
 	  open();
 	  while((getchar())!='\n');
