@@ -405,6 +405,64 @@ void read(){
 
 }
 
+/****************************WRITE********************************/
+void write(){
+	// TO DO:
+	// Multi-cluster files need to be tested, but I think this should be able to handle them.
+	// mode checking for the mode in the actual file system. (I've already tested for the mode the user entered when opening the file).
+
+
+ char inoffset[11];
+ char insize[11];
+ char instring[1000]={0};
+ int offset;
+ int originalOffset;
+ int size;
+ int realSize;
+ char *string;
+ scanf("%s",name);
+ scanf("%s",inoffset);
+ scanf("%s",insize);
+ scanf("%s",instring);
+ offset = atoi(inoffset);
+ size = atoi(insize);
+ string=calloc(sizeof(char),size+1);
+ realSize = findsize(); 
+ int n = offset / bpb.BPB_BytsPerSec;
+ char contents[bpb.BPB_BytsPerSec];
+ int index = openSearch(name);
+ if(index == -1){
+  printf("This file is not open.\n");
+  return;
+ }
+ 
+ if(strcmp(openlist[index].mode,"w")!=0 && strcmp(openlist[index].mode,"rw")!=0 && strcmp(openlist[index].mode,"wr")!=0)
+ {
+  printf("You do not have permission to write this file.\n");
+  return;
+ }
+ // Do this test again, but for the actual mode in the file system for this file.
+ 
+ if(offset < 0){offset = offset * -1;} // don't let offset be negative.
+ if(offset + size > realSize){size = realSize - offset;} // Don't let them read past the end of the file.
+ if(size <=0){return;}
+ originalOffset = offset;
+ int next = 1;
+ offset += openlist[index].cluster; 
+
+ for(int i=0;i<size;i++){
+   if(instring[i+1]=='"'){
+     string[i]='\0';
+     continue;
+   }
+   string[i]=instring[i+1];
+ }
+
+	fseek (file,offset,SEEK_SET);
+	fread(&dir,sizeof(struct DirectoryEntry),1,file);
+fwrite(string,size,1,file);
+	
+}
 /***************************INFO**********************************/
 void info(){
 
@@ -851,9 +909,13 @@ int main(int argc, char*argv[]){
 	  read();
 	  while((getchar())!='\n');
 	}
+	else if(strcmp(cmd,"write")==0){
+	  write();
+	  while((getchar())!='\n');
+	}
 	else{
 	  printf("Command not found.\n");
-	  printf("List of commands:\nexit\ninfo\nls <dir>\ncd <dir>\nsize <dir> or size <file>\ncreat\nmkdir\nrm\nrmdir\nopen <file> <mode>\nclose <file>\nread\nwrite\n");
+	  printf("List of commands:\nexit\ninfo\nls <dir>\ncd <dir>\nsize <dir> or size <file>\ncreat\nmkdir <dir>\nrm\nrmdir <dir>\nopen <file> <mode>\nclose <file>\nread <file> <offset> <size>\nwrite <file> <offset> <size> <string>\n");
 	}
       }
     }
