@@ -30,6 +30,8 @@ Dillon Prendergast
   -part13- write
 
 Zachary Timmerman
+  -part6- creat
+  -part8- rm
 
 John Thomas Lascha
   -README
@@ -79,6 +81,8 @@ To remove executable:
 **************************************************
 
 -read must be tested on multi cluster files
+-debug write and mkdir
+-creat and rm commands
 
 **************************************************
 		     COMMENTS
