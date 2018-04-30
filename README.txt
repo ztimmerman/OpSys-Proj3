@@ -81,8 +81,8 @@ To remove executable:
 **************************************************
 
 -read must be tested on multi cluster files
--debug write and mkdir
--creat and rm commands
+-debug write, creat, and mkdir
+-rm command
 
 **************************************************
 		     COMMENTS
