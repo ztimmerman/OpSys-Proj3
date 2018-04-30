@@ -10,6 +10,7 @@
 #include <string.h>	//strcmp
 #include <stdbool.h>	//bool
 #include <stdlib.h>	//atoi
+#include "stack.h"
 
 /*******************************STRUCTS*******************************/
 
@@ -1292,6 +1293,7 @@ void creat()    {
 }
 
 /********************************RM********************************/
+//removes a file from the directory
 void rm()	{
 	unsigned int offset;
 	unsigned int c = currClus;
@@ -1358,6 +1360,11 @@ void rm()	{
 	}
 
 	//if file exists...
+	//stack structure to be used in gathering all clusters belonging to a file.
+//	struct node * stack = NULL;
+//	init(stack);
+
+
 	printf("rm not fully implemented. Cannot delete files.\n");
 }
 
