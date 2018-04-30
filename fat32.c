@@ -367,7 +367,7 @@ void read(){
  scanf("%s",insize);
  offset = atoi(inoffset);
  size = atoi(insize);
- realSize = findsize(); 
+ realSize = findsize();
  int n = offset / bpb.BPB_BytsPerSec;
  char contents[bpb.BPB_BytsPerSec];
  int index = openSearch(name);
@@ -375,20 +375,20 @@ void read(){
   printf("This file is not open.\n");
   return;
  }
- 
+
  if(strcmp(openlist[index].mode,"r")!=0 && strcmp(openlist[index].mode,"rw")!=0 && strcmp(openlist[index].mode,"wr")!=0)
  {
   printf("You do not have permission to read from this file.\n");
   return;
  }
  // Do this test again, but for the actual mode in the file system for this file.
- 
+
  if(offset < 0){offset = offset * -1;} // don't let offset be negative.
  if(offset + size > realSize){size = realSize - offset;} // Don't let them read past the end of the file.
  if(size <=0){return;}
  originalOffset = offset;
  int next = 1;
- offset += openlist[index].cluster; 
+ offset += openlist[index].cluster;
 
  while(next != 0){
 	fseek (file,offset,SEEK_SET);
@@ -432,7 +432,7 @@ void write(){
  offset = atoi(inoffset);
  size = atoi(insize);
  string=calloc(sizeof(char),size+1);
- realSize = findsize(); 
+ realSize = findsize();
  int n = offset / bpb.BPB_BytsPerSec;
  char contents[bpb.BPB_BytsPerSec];
  int index = openSearch(name);
@@ -440,20 +440,20 @@ void write(){
   printf("This file is not open.\n");
   return;
  }
- 
+
  if(strcmp(openlist[index].mode,"w")!=0 && strcmp(openlist[index].mode,"rw")!=0 && strcmp(openlist[index].mode,"wr")!=0)
  {
   printf("You do not have permission to write this file.\n");
   return;
  }
  // Do this test again, but for the actual mode in the file system for this file.
- 
+
  if(offset < 0){offset = offset * -1;} // don't let offset be negative.
  if(offset + size > realSize){size = realSize - offset;} // Don't let them read past the end of the file.
  if(size <=0){return;}
  originalOffset = offset;
  int next = 1;
- offset += openlist[index].cluster; 
+ offset += openlist[index].cluster;
 
  for(int i=0;i<size;i++){
    if(instring[i+1]=='"'){
@@ -466,7 +466,7 @@ void write(){
 	fseek (file,offset,SEEK_SET);
 	fread(&dir,sizeof(struct DirectoryEntry),1,file);
 fwrite(string,size,1,file);
-	
+
 }
 /***************************INFO**********************************/
 void info(){
@@ -529,7 +529,7 @@ void ls(){
   bool found=0;
 
   scanf("%s",name);
-  
+
   //Valid entries are '.', '..' or a string
 
   if(strcmp(name,"..")==0){
@@ -747,7 +747,7 @@ void size(){
   bool found=0;
 
   scanf("%s",name);
-  
+
   //Valid entries are '.', '..' or a string
 
   if(strcmp(name,"..")==0){
@@ -1291,6 +1291,11 @@ void creat()    {
         }
 }
 
+/********************************RM********************************/
+void rm()	{
+	
+}
+
 
 /********************************MAIN******************************/
 int main(int argc, char*argv[]){
@@ -1372,7 +1377,7 @@ int main(int argc, char*argv[]){
       printf("Could not find FAT32 image.\n");
       return 0;
     }
-	
+
   }
 
   //end program if no argument passed
