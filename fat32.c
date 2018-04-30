@@ -787,7 +787,7 @@ void creat()	{
 		fread(&dir,sizeof(struct DirectoryEntry),1,file);
 
 		unsigned char fname[26]={0};
-		for (int i = 0; k = 0; i < 10; i += 2)	{
+		for (int i = 0, k = 0; i < 10; i += 2)	{
 			//concatenates filenames from read data	//!!! May need refactoring !!!
 			fname[k]=ldir.LDIR_Name1[i];
 			if(fname[k]=='\0')
@@ -858,7 +858,8 @@ void creat()	{
 					if(name[i/2]=='\0')
 						break;
 				}
-				dir.DIR_Attr=0x10;
+	//		dir.DIR_Attr=0x10;
+				dir.DIR_FileSize = 0;
 				dir.DIR_FstClusHI=emptyClus/0x100;
 				dir.DIR_FstClusLO=emptyClus%0x100;
 				fwrite(&ldir,sizeof(struct LongDirectoryEntry),1,file);
@@ -869,7 +870,7 @@ void creat()	{
 			offset+=64;
 		}
 		if(created){	//creates dir entry
-      offset=SectorOffset(FirstSectorCluster(emptyClus));
+/*    offset=SectorOffset(FirstSectorCluster(emptyClus));
       fseek(file,offset,SEEK_SET);
 
 			for(int i=0;i<11;i++){
@@ -890,7 +891,7 @@ void creat()	{
 			dir.DIR_FstClusHI=c/0x100;
 			dir.DIR_FstClusLO=c%0x100;
 			fwrite(&dir,sizeof(struct DirectoryEntry),1,file);
-		}
+*/	}
 		else{
 			printf("Current directory full\n");
 		}
@@ -1093,6 +1094,10 @@ int main(int argc, char*argv[]){
 	else if(strcmp(cmd,"mkdir")==0){
 	  mkdir();
 	  while((getchar())!='\n');
+	}
+	else if (strcmp(cmd,"creat")==0)	{
+		creat();
+		while((getchar()) != '\n');
 	}
 	else if(strcmp(cmd,"open")==0){
 	  open();
