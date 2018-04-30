@@ -27,12 +27,17 @@ Dillon Prendergast
   -part5- size
   -part7- mkdir
   -part9- rmdir
+  -part13- write
 
 Zachary Timmerman
+  -part6- creat
+  -part8- rm
 
 John Thomas Lascha
-  -part10
-  -part11
+  -README
+  -part10- open
+  -part11- close
+  -part12- read
 **************************************************
 		TAR ARCHIVE CONTENTS
 **************************************************
@@ -68,13 +73,16 @@ To remove executable:
 		      BUGS
 **************************************************
 
--Mkdir concatenates names of directories longer than 5 char
+-Mkdir truncates names of directories longer than 5 char
+-write cuts ending 0's when size>strlen
 
 **************************************************
 		UNFINISHED PORTIONS
 **************************************************
 
--
+-read must be tested on multi cluster files
+-debug write and mkdir
+-creat and rm commands
 
 **************************************************
 		     COMMENTS
@@ -83,5 +91,4 @@ To remove executable:
  slides on size command over size DIRNAME vs size FILE,
  so both are included
 -When in root directory, most uses of '..' function
- same as '.'
- Based on the function of 'cd ..' in a Linux root directory
+ same as '.' Based on the function of 'cd ..' in a Linux root directory
