@@ -367,7 +367,7 @@ void read(){
  scanf("%s",insize);
  offset = atoi(inoffset);
  size = atoi(insize);
- realSize = findsize(); 
+ realSize = findsize();
  int n = offset / bpb.BPB_BytsPerSec;
  char contents[bpb.BPB_BytsPerSec];
  int index = openSearch(name);
@@ -375,20 +375,20 @@ void read(){
   printf("This file is not open.\n");
   return;
  }
- 
+
  if(strcmp(openlist[index].mode,"r")!=0 && strcmp(openlist[index].mode,"rw")!=0 && strcmp(openlist[index].mode,"wr")!=0)
  {
   printf("You do not have permission to read from this file.\n");
   return;
  }
  // Do this test again, but for the actual mode in the file system for this file.
- 
+
  if(offset < 0){offset = offset * -1;} // don't let offset be negative.
  if(offset + size > realSize){size = realSize - offset;} // Don't let them read past the end of the file.
  if(size <=0){return;}
  originalOffset = offset;
  int next = 1;
- offset += openlist[index].cluster; 
+ offset += openlist[index].cluster;
 
  while(next != 0){
 	fseek (file,offset,SEEK_SET);
@@ -432,7 +432,7 @@ void write(){
  offset = atoi(inoffset);
  size = atoi(insize);
  string=calloc(sizeof(char),size+1);
- realSize = findsize(); 
+ realSize = findsize();
  int n = offset / bpb.BPB_BytsPerSec;
  char contents[bpb.BPB_BytsPerSec];
  int index = openSearch(name);
@@ -440,20 +440,20 @@ void write(){
   printf("This file is not open.\n");
   return;
  }
- 
+
  if(strcmp(openlist[index].mode,"w")!=0 && strcmp(openlist[index].mode,"rw")!=0 && strcmp(openlist[index].mode,"wr")!=0)
  {
   printf("You do not have permission to write this file.\n");
   return;
  }
  // Do this test again, but for the actual mode in the file system for this file.
- 
+
  if(offset < 0){offset = offset * -1;} // don't let offset be negative.
  if(offset + size > realSize){size = realSize - offset;} // Don't let them read past the end of the file.
  if(size <=0){return;}
  originalOffset = offset;
  int next = 1;
- offset += openlist[index].cluster; 
+ offset += openlist[index].cluster;
 
  for(int i=0;i<size;i++){
    if(instring[i+1]=='"'){
@@ -466,7 +466,7 @@ void write(){
 	fseek (file,offset,SEEK_SET);
 	fread(&dir,sizeof(struct DirectoryEntry),1,file);
 fwrite(string,size,1,file);
-	
+
 }
 /***************************INFO**********************************/
 void info(){
@@ -529,7 +529,7 @@ void ls(){
   bool found=0;
 
   scanf("%s",name);
-  
+
   //Valid entries are '.', '..' or a string
 
   if(strcmp(name,"..")==0){
@@ -747,7 +747,7 @@ void size(){
   bool found=0;
 
   scanf("%s",name);
-  
+
   //Valid entries are '.', '..' or a string
 
   if(strcmp(name,"..")==0){
@@ -1248,7 +1248,7 @@ void creat()    {
                                         if(name[i/2]=='\0')
                                                 break;
                                 }
-        //              dir.DIR_Attr=0x10;
+																dir.DIR_Attr = 0x00;
                                 dir.DIR_FileSize = 0;
                                 dir.DIR_FstClusHI=emptyClus/0x100;
                                 dir.DIR_FstClusLO=emptyClus%0x100;
@@ -1289,6 +1289,76 @@ void creat()    {
         else{
                 printf("File name in use\n");
         }
+}
+
+/********************************RM********************************/
+void rm()	{
+	unsigned int offset;
+	unsigned int c = currClus;
+	bool found = 0;
+
+	//get new file's name
+	scanf("%s",name);
+
+	// make sure the user isn't typing something forbidden
+	if (strcmp(name,"..") == 0)     {
+		printf("Invalid argument\n");
+		return;
+	} else if (strcmp(name,".") == 0) {
+		printf("Invalid argument\n");
+		return;
+	}
+
+	//seek to current cluster
+	offset = SectorOffset(FirstSectorCluster(c));
+	fseek(file,offset,SEEK_SET);
+	unsigned int temp = offset + bpb.BPB_BytsPerSec * bpb.BPB_SecPerClus;
+
+	while (temp > offset)   {
+		//fill dir structs
+		fread(&ldir,sizeof(struct LongDirectoryEntry),1,file);
+		fread(&dir,sizeof(struct DirectoryEntry),1,file);
+
+		unsigned char fname[26]={0};
+		for (int i = 0, k = 0; i < 10; i += 2)  {
+			//concatenates filenames from read data //!!! May need refactoring !!!
+			fname[k]=ldir.LDIR_Name1[i];
+			if(fname[k]=='\0')
+				break;
+				k++;
+				if(i==8){
+				for(int j=0;j<12;j+=2){
+					fname[k]=ldir.LDIR_Name2[j];
+					if(fname[k]=='\0')
+						break;
+					k++;
+					if(j==10){
+						for(int l=0;l<4;l+=2){
+							fname[k]=ldir.LDIR_Name3[l];
+							if(fname[k]=='\0')
+								break;
+							k++;
+						}
+					}
+				}
+			}
+		}
+		//trigger on name match
+		if(strcmp(fname,name)==0){
+			found=1;
+			break;
+		}
+		offset+=64;     //increments to next entry
+	}//end while
+
+	//if user is trying to rm file that doesn't exist
+	if (!found)	{
+		printf("File doesn't exist.\n");
+		return;
+	}
+
+	//if file exists...
+	printf("rm not fully implemented. Cannot delete files.\n");
 }
 
 
@@ -1344,6 +1414,10 @@ int main(int argc, char*argv[]){
           creat();
           while((getchar())!='\n');
         }
+				else if (strcmp(cmd,"rm")==0)	{
+					rm();
+					while((getchar()) != '\n');
+				}
 	else if(strcmp(cmd,"open")==0){
 	  open();
 	  while((getchar())!='\n');
@@ -1372,7 +1446,7 @@ int main(int argc, char*argv[]){
       printf("Could not find FAT32 image.\n");
       return 0;
     }
-	
+
   }
 
   //end program if no argument passed
